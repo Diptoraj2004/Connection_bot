@@ -1,0 +1,10 @@
+# Core dependencies
+supabase
+python-dotenv
+ibm-watson
+cryptography
+flask
+pandas
+
+# Optional (recommended for analytics/exports)
+openpyxl
