@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Env & secrets
+.env
+local_progress.json
+offline_backup.json
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
