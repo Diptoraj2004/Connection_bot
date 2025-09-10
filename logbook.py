@@ -1,15 +1,51 @@
 import sys
+import speech_recognition as sr
 from supabase_helper import get_sb_client, upsert_response
 from config import USER_ID
+
+def get_voice_input() -> str:
+    """Listens for voice input from the microphone and converts it to text."""
+    r = sr.Recognizer()
+    try:
+        with sr.Microphone() as source:
+            print("\n🗣️ Speak your logbook entry now...")
+            r.adjust_for_ambient_noise(source)
+            audio = r.listen(source, phrase_time_limit=30)
+        
+        print("⏳ Recognizing speech...")
+        # Use Google Web Speech API
+        text = r.recognize_google(audio)
+        return text
+
+    except sr.UnknownValueError:
+        print("❌ Could not understand audio.")
+        return ""
+    except sr.RequestError as e:
+        print(f"❌ Speech recognition service error: {e}")
+        return ""
+    except Exception as e:
+        print(f"❌ An error occurred: {e}")
+        return ""
 
 def ask_logbook_entry(sb, user_id):
     """
     Prompts the user to write a logbook entry and asks for sharing preference.
     """
-    print("\n Write your logbook entry for today:")
-    log_entry = input("→ ").strip()
+    print("\nHow do you want to write your logbook entry?")
+    print("1. Type it out")
+    print("2. Speak it (Voice-to-Text)")
+    
+    choice = input("Select an option (1/2): ").strip()
+    
+    log_entry = ""
+    if choice == "2":
+        log_entry = get_voice_input()
+    else:
+        print("\n✍️ Write your logbook entry for today:")
+        log_entry = input("→ ").strip()
+
     if not log_entry:
-        print("Logbook entry cannot be empty. Skipping.")
+        print("❌ Logbook entry cannot be empty. Skipping.")
         return
 
     # Store the logbook entry
@@ -22,7 +58,7 @@ def ask_logbook_entry(sb, user_id):
     share_status = "Yes" if share_counsellor == "yes" else "No"
     upsert_response(sb, user_id, "share_counsellor", "Share with Counsellor", share_status)
 
-    print("\nLogbook entry saved.")
+    print("\n✅ Logbook entry saved.")
 
 def main():
     """

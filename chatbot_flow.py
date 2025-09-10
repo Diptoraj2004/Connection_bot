@@ -12,6 +12,9 @@ from progress_store import (
 )
 from iot_adapter import collect_iot_metrics
 
+#logbook import
+from logbook import ask_logbook_entry
+
 # Optional imports
 try:
     from watson_helper import watson_available
@@ -116,6 +119,8 @@ def run_screening_console():
         batch = questions[(progress-1)*10 : progress*10]
 
         ask_mood_sleep(sb, user_id)
+        
+        ask_logbook_entry(sb, user_id)
 
         iot_data = collect_iot_metrics()
         print("\n📊 IoT Metrics:", iot_data)
