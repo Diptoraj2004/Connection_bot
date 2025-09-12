@@ -1,7 +1,11 @@
+# logbook.py
 import sys
 import speech_recognition as sr
-from supabase_helper import get_sb_client, upsert_response
+from supabase_helper import get_sb_client
 from config import USER_ID
+
+from datetime import datetime, timezone
+
 
 def get_voice_input() -> str:
     """Listens for voice input from the microphone and converts it to text."""
@@ -11,10 +15,9 @@ def get_voice_input() -> str:
             print("\n🗣️ Speak your logbook entry now...")
             r.adjust_for_ambient_noise(source)
             audio = r.listen(source, phrase_time_limit=30)
-        
+
         print("⏳ Recognizing speech...")
-        # Use Google Web Speech API
-        text = r.recognize_google(audio)
+        text = r.recognize_google(audio)  # Google Web Speech API
         return text
 
     except sr.UnknownValueError:
@@ -27,16 +30,39 @@ def get_voice_input() -> str:
         print(f"❌ An error occurred: {e}")
         return ""
 
+
+def save_logbook_entry(sb, user_id, entry_text, share_with_counselor=False):
+    """
+    Saves a logbook entry to Supabase (table: logbook).
+    Falls back to printing if Supabase is unavailable.
+    """
+    row = {
+        "user_id": user_id,
+        "entry": entry_text,
+        "share_with_counselor": share_with_counselor,
+        "ts": datetime.now(timezone.utc).isoformat()
+    }
+    try:
+        if sb:
+            sb.table("logbook").insert(row).execute()
+            print("✅ Logbook entry saved to Supabase.")
+        else:
+            print("⚠️ No Supabase client, skipping DB insert.")
+    except Exception as e:
+        print(f"⚠️ Failed to save logbook entry: {e}")
+
+
 def ask_logbook_entry(sb, user_id):
     """
     Prompts the user to write a logbook entry and asks for sharing preference.
     """
-    print("\nHow do you want to write your logbook entry?")
+    print("\n📓 Logbook Entry")
+    print("---------------------------")
     print("1. Type it out")
     print("2. Speak it (Voice-to-Text)")
-    
+
     choice = input("Select an option (1/2): ").strip()
-    
+
     log_entry = ""
     if choice == "2":
         log_entry = get_voice_input()
@@ -48,25 +74,19 @@ def ask_logbook_entry(sb, user_id):
         print("❌ Logbook entry cannot be empty. Skipping.")
         return
 
-    # Store the logbook entry
-    upsert_response(sb, user_id, "logbook_entry", "Logbook Entry", log_entry)
-
     print("\nDo you want to share this entry with a counsellor? (yes/no)")
-    share_counsellor = input("→ ").strip().lower()
+    share_counselor = input("→ ").strip().lower()
+    share_status = share_counselor == "yes"
 
-    # Store the sharing preference
-    share_status = "Yes" if share_counsellor == "yes" else "No"
-    upsert_response(sb, user_id, "share_counsellor", "Share with Counsellor", share_status)
+    save_logbook_entry(sb, user_id, log_entry, share_with_counselor=share_status)
 
-    print("\n✅ Logbook entry saved.")
 
 def main():
-    """
-    Main function to run the logbook script.
-    """
+    """Main function to run the logbook script standalone."""
     sb = get_sb_client()
     print("Welcome to the Logbook feature!")
     ask_logbook_entry(sb, USER_ID)
+
 
 if __name__ == "__main__":
     main()

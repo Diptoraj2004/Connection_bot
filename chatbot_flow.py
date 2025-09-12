@@ -15,6 +15,9 @@ from iot_adapter import collect_iot_metrics
 #logbook import
 from logbook import ask_logbook_entry
 
+#emergency contact import
+from emergency import check_for_emergency, trigger_emergency_escalation
+
 # Optional imports
 try:
     from watson_helper import watson_available
@@ -134,11 +137,17 @@ def run_screening_console():
 
         set_progress(sb, user_id, progress+1)
         print(f"\n🎵 Music suggestion: {random.choice(MUSIC_SUGGESTIONS)}")
-
+        
         user_msg = input("\n💬 Say something to AI: ").strip()
-        if user_msg:
-            reply = llm_generate(user_msg)
-            print("AI:", reply)
+        
+        # Emergency check is placed for students
+        if check_for_emergency(user_msg):
+            trigger_emergency_escalation(USER_ID, user_msg)
+        else:
+            if user_msg:
+                reply = llm_generate(user_msg)
+                print("AI:", reply)
+
 
     elif role == "counselor":
         print("\n📌 Counselor Dashboard (placeholder)")
