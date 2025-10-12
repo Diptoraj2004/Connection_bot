@@ -1,150 +1,240 @@
-# chatbot_flow.py
-import os, random
+# Patched: 2025-09-14 - production-ready
+"""
+Deterministic ChatSession state machine used by console, web and WhatsApp adapters.
+Student-facing outputs never include raw numeric scores.
+This module depends on data_loader and supabase_helper for question banks and storage.
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any
+import uuid
 from datetime import datetime
-from config import (
-    USE_WATSON, LLM_PROVIDER, LLM_MODEL,
-    MOOD_OPTIONS, MUSIC_SUGGESTIONS, ESCALATION_THRESHOLD
-)
-from data_loader import load_all_datasets
-from supabase_helper import get_sb_client, upsert_response, set_progress, get_progress
-from progress_store import (
-    record_mood, record_sleep, get_current_streak, record_escalation, load_user_state, save_user_state
-)
-from iot_adapter import collect_iot_metrics
 
-# Optional imports
-try:
-    from watson_helper import watson_available
-except ImportError:
-    watson_available = lambda: False
+from data_loader import get_questionnaire
+import supabase_helper as sbh
+from progress_store import update_progress
+from config import ESCALATION_THRESHOLDS, SCORE_VISIBLE_TO_STUDENT
 
-try:
-    from groq import Groq
-except ImportError:
-    Groq = None
+# Simple state constants
+STATE_ONBOARD = "ONBOARD"
+STATE_MOOD_PROMPT = "MOOD_PROMPT"
+STATE_SELECT_SCREENING = "SELECT_SCREENING"
+STATE_SCREENING_Q = "SCREENING_Q"
+STATE_SCORING = "SCORING"
+STATE_ESCALATION_DECISION = "ESCALATION_DECISION"
+STATE_APPOINTMENT_FLOW = "APPOINTMENT_FLOW"
+STATE_END = "END"
 
+def _utcnow_iso():
+    return datetime.utcnow().isoformat()
 
-# ---------------------------
-# LLM Helper
-# ---------------------------
-def llm_generate(prompt: str) -> str:
-    """Generate a reply using configured LLM provider."""
-    if LLM_PROVIDER == "groq" and Groq:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        resp = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
-        )
-        return resp.choices[0].message["content"]
-    return "⚠️ LLM provider not configured properly."
+@dataclass
+class ChatSession:
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: Optional[str] = None
+    channel: str = "console"
+    state: str = STATE_ONBOARD
+    persona: Dict[str, Any] = field(default_factory=dict)
+    current_question_index: int = 0
+    questionnaire: Optional[Dict[str, Any]] = None
+    answers: List[Dict[str, Any]] = field(default_factory=list)
+    test_name: Optional[str] = None
+    last_interaction: str = field(default_factory=_utcnow_iso)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "user_id": self.user_id,
+            "channel": self.channel,
+            "state": self.state,
+            "test_name": self.test_name,
+            "current_question_index": self.current_question_index,
+            "answers": self.answers,
+            "last_interaction": self.last_interaction
+        }
 
-# ---------------------------
-# Role Handling
-# ---------------------------
-def ask_user_role():
-    """Ask or load role from state (student, counselor, institution)."""
-    state = load_user_state()
-    role = state.get("role")
-    if role:
-        return role
+    # ----------------------
+    # Flow methods
+    # ----------------------
+    def start_onboarding(self) -> str:
+        self.state = STATE_ONBOARD
+        return "Hi — what's your name? (Example reply: 'Ravi')"
 
-    print("\nWho are you?")
-    print("1. Student / Patient")
-    print("2. Counselor / Doctor")
-    print("3. Institution")
-    print("4. First-time User")
-    choice = input("Select option: ").strip()
-    role_map = {"1":"student","2":"counselor","3":"institution","4":"first_time"}
-    role = role_map.get(choice, "student")
+    def receive_onboard(self, text: str) -> str:
+        name = text.strip()
+        self.persona["name"] = name
+        self.state = STATE_MOOD_PROMPT
+        return f"Nice to meet you, {name}. Which year are you in? (Example: '2')"
 
-    state["role"] = role
-    save_user_state(state)
-    return role
+    def receive_year(self, text: str) -> str:
+        self.persona["year"] = text.strip()
+        self.state = STATE_MOOD_PROMPT
+        return ("Thanks. Now tell me briefly how you are feeling today."
+                " Example response: 'I'm feeling low today, mood 2' or just '2' (where 0=very low, 5=very good).")
 
+    def prompt_mood(self) -> str:
+        self.state = STATE_MOOD_PROMPT
+        return ("On a scale of 0–5, how are you feeling right now?"
+                " Example: '2' or 'I'm at 4 today'")
 
-# ---------------------------
-# Mood + Sleep + Escalation
-# ---------------------------
-def ask_mood_sleep(sb, user_id):
-    """Ask mood and sleep, log them, and check escalation logic."""
-    print("\n--- Daily Check-in ---")
-    for i, mood in enumerate(MOOD_OPTIONS):
-        print(f"{i+1}. {mood}")
-    choice = input("Mood today: ").strip()
-    mood = MOOD_OPTIONS[int(choice)-1] if choice.isdigit() and 1 <= int(choice) <= len(MOOD_OPTIONS) else "Unknown"
+    def receive_mood(self, text: str) -> str:
+        # Extract a numeric mood if present
+        mood_value = None
+        for token in text.split():
+            try:
+                v = int(token)
+                if 0 <= v <= 5:
+                    mood_value = v
+                    break
+            except Exception:
+                pass
+        if mood_value is None:
+            # fallback: try to map words (simple)
+            lowered = text.lower()
+            if any(w in lowered for w in ["good", "well", "fine", "great"]):
+                mood_value = 5
+            elif any(w in lowered for w in ["ok", "okay"]):
+                mood_value = 3
+            else:
+                mood_value = 2
+        # store progress
+        if self.user_id:
+            update_progress(self.user_id, mood_value)
+        # choose screening based on mood (deterministic mapping)
+        if mood_value <= 2:
+            self.test_name = "phq-9"
+        elif mood_value == 3:
+            self.test_name = "gad-7"
+        else:
+            self.test_name = "who-5"
+        # load questionnaire
+        try:
+            self.questionnaire = get_questionnaire(self.test_name)
+        except Exception:
+            self.questionnaire = get_questionnaire("phq9")
+            self.test_name = "phq-9"
+        self.current_question_index = 0
+        self.answers = []
+        self.state = STATE_SCREENING_Q
+        return ("📋 Let’s fill a short questionnaire to better understand how you’re feeling.\n"
+                "Example answer format: reply with the number for the option, e.g., 0, 1, 2, 3.\n\n" +
+                self._current_question_text())
 
-    record_mood(mood)
-    upsert_response(sb, user_id, "mood", "Daily Mood", mood)
+    def _current_question_text(self) -> str:
+        if not self.questionnaire or self.current_question_index >= len(self.questionnaire["questions"]):
+            return "No more questions."
+        q = self.questionnaire["questions"][self.current_question_index]
+        options = q.get("options", [])
+        opts = "\n".join([f"{i}. {opt['text']}" for i, opt in enumerate(options)])
+        return f"Q{self.current_question_index+1}: {q['text']}\n{opts}"
 
-    hours = input("Hours of sleep last night: ").strip()
-    try: hours = int(hours)
-    except: hours = 0
-    record_sleep(hours)
-    upsert_response(sb, user_id, "sleep", "Sleep Hours", str(hours))
+    def receive_answer(self, text: str) -> str:
+        # expect numeric option; parse best-effort
+        q = self.questionnaire["questions"][self.current_question_index]
+        chosen_value = None
+        chosen_text = text.strip()
+        # try parse single int
+        try:
+            tokens = [t.strip().strip(".") for t in text.split() if t.strip()]
+            for t in tokens:
+                if t.isdigit():
+                    idx = int(t)
+                    if 0 <= idx < len(q.get("options", [])):
+                        chosen_value = q["options"][idx]["value"]
+                        chosen_text = q["options"][idx]["text"]
+                        break
+        except Exception:
+            chosen_value = None
+        # fallback to matching option text by words
+        if chosen_value is None:
+            # try to match to known options by contains
+            for opt in q.get("options", []):
+                if opt["text"].lower() in text.lower():
+                    chosen_value = opt["value"]
+                    chosen_text = opt["text"]
+                    break
+        # final fallback: if any integer at all, use it as value
+        if chosen_value is None:
+            for token in text.split():
+                try:
+                    v = int(token)
+                    chosen_value = v
+                    break
+                except Exception:
+                    continue
+        # Save answer (numeric_value may still be None)
+        ans = {
+            "question_id": q["id"],
+            "question_text": q["text"],
+            "answer_text": chosen_text,
+            "numeric_value": chosen_value
+        }
+        self.answers.append(ans)
+        # Persist via sbh.log_response (non-blocking in production — here it's local)
+        try:
+            sbh.log_response(user_id=self.user_id, session_id=self.session_id, channel=self.channel,
+                             test_name=self.test_name, question_id=q["id"], question_text=q["text"],
+                             answer_text=chosen_text, numeric_value=chosen_value, modality="text")
+        except Exception:
+            pass
+        # move next
+        self.current_question_index += 1
+        if self.current_question_index >= len(self.questionnaire["questions"]):
+            self.state = STATE_SCORING
+            return self._process_scoring()
+        else:
+            return self._current_question_text()
 
-    if mood.lower() in ["sad","anxious","angry"] or hours < 4:
-        record_escalation("Low mood or poor sleep")
-        print("⚠️ Escalation flagged.")
+    def _score_answers(self) -> int:
+        total = 0
+        for a in self.answers:
+            v = a.get("numeric_value")
+            if isinstance(v, int):
+                total += v
+        return total
 
-    streak = get_current_streak()
-    print(f"🔥 Streak: {streak} days")
+    def _process_scoring(self) -> str:
+        raw_score = self._score_answers()
+        # store numeric score for counselors / ML
+        sbh.record_score(user_id=self.user_id, session_id=self.session_id, test_name=self.test_name, raw_score=raw_score, interpreted="", details={"answers_count": len(self.answers)})
+        # decide escalation
+        threshold = ESCALATION_THRESHOLDS.get(self.test_name.upper(), None)
+        # map phq9 id style
+        if threshold is None:
+            # try mapping common names
+            threshold = ESCALATION_THRESHOLDS.get(self.test_name.replace("-", "_").upper(), None)
+        # Determine level
+        level = "info"
+        if threshold is not None and raw_score >= threshold:
+            level = "critical"
+        # Create alert for counselors if needed
+        if level in ("warning", "critical"):
+            sbh.create_alert(user_id=self.user_id, session_id=self.session_id, test_name=self.test_name, score=raw_score, level=level, details={"answers": self.answers}, notify_methods=None)
+        # Student-facing message: supportive only (do not share numeric score)
+        supportive = ("Thanks — I've noted how you're feeling. I can't show raw scores here, but if you'd like "
+                      "I can offer a short breathing exercise, self-help tips, or help to book a session with a counsellor. "
+                      "Would you like any of those now? (Example: 'breathing', 'tips', 'book')")
+        self.state = STATE_APPOINTMENT_FLOW
+        return supportive
 
+    def handle_post_screening_choice(self, text: str) -> str:
+        t = text.lower()
+        if "breath" in t:
+            return _breathing_text()
+        if "tip" in t:
+            return _self_care_tips()
+        if "book" in t or "appointment" in t:
+            return "Okay — I can help you book an appointment. Please tell me your preferred date/time (example: 'tomorrow 3pm')."
+        return "I can help with breathing, self-care tips, or booking a session. Which would you prefer?"
 
-# ---------------------------
-# Screening Flow
-# ---------------------------
-def run_screening_console():
-    """Main chatbot flow (console-based)."""
-    sb = None
-    try: sb = get_sb_client()
-    except: print("⚠️ Supabase unavailable, using local fallback.")
+def _breathing_text() -> str:
+    return ("Let's try a simple 4-4-4 breathing exercise:\n"
+            "Inhale slowly for 4 seconds — hold 4 seconds — exhale for 4 seconds. Repeat this 4 times. "
+            "Would you like to do that now?")
 
-    user_id = "fixed_user"
-    role = ask_user_role()
-
-    if role == "student":
-        datasets = load_all_datasets()
-        if not datasets:
-            print("❌ No datasets found.")
-            return
-        dataset_name = list(datasets.keys())[0]
-        questions = datasets[dataset_name]
-
-        progress = get_progress(sb, user_id)
-        batch = questions[(progress-1)*10 : progress*10]
-
-        ask_mood_sleep(sb, user_id)
-
-        iot_data = collect_iot_metrics()
-        print("\n📊 IoT Metrics:", iot_data)
-
-        print("\n--- Screening ---")
-        for q in batch:
-            print(q["text"])
-            if q["options"]: print("Options:", ", ".join(q["options"]))
-            ans = input("Answer: ").strip()
-            upsert_response(sb, user_id, q["id"], q["text"], ans)
-
-        set_progress(sb, user_id, progress+1)
-        print(f"\n🎵 Music suggestion: {random.choice(MUSIC_SUGGESTIONS)}")
-
-        user_msg = input("\n💬 Say something to AI: ").strip()
-        if user_msg:
-            reply = llm_generate(user_msg)
-            print("AI:", reply)
-
-    elif role == "counselor":
-        print("\n📌 Counselor Dashboard (placeholder)")
-        print(" - View escalation logs (to be implemented).")
-
-    elif role == "institution":
-        print("\n🏢 Institution Dashboard (placeholder)")
-        print(" - Aggregate analytics of all users (to be implemented).")
-
-    elif role == "first_time":
-        print("\n👋 Welcome! Let’s set up your account.")
-        print("Tell us if you’re a student, counselor, or institution (restart will save this).")
-
-    print("\n✅ Session complete.")
+def _self_care_tips() -> str:
+    return ("Here are some quick self-care tips:\n"
+            "• Try 5 minutes of deep breathing\n"
+            "• Drink some water and take a short walk\n"
+            "• Do a grounding exercise: name 3 things you can see, 2 you can touch, 1 you can hear\n"
+            "If you'd like professional support, I can help connect you to a counsellor.")

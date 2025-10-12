@@ -1,35 +1,57 @@
+# Patched: 2025-09-14 - production-ready
 """
-iot_adapter.py
-Stub for smartwatch / smartphone IoT integration.
-Currently simulates metrics (replace with real SDKs/APIs later).
+IoT adapter: stubs and simulation for Google Fit / Fitbit / Apple Health / Samsung Health.
+Provides insert_iot_reading function compatible with supabase_helper.insert_iot_reading.
+Includes spike detection and alerts creation.
 """
 
 import random
+import time
+from typing import Optional, Dict, Any
 from datetime import datetime
 
-def get_sweat_level(user_id):
-    # Range: 0 (dry) – 100 (very sweaty)
-    return {"user_id": user_id, "sweat_level": random.randint(0, 100), "ts": datetime.now().isoformat()}
+from supabase_helper import insert_iot_reading, create_alert
+from config import USE_SIMULATION, USE_GOOGLE_FIT, USE_FITBIT, USE_APPLE_HEALTH, USE_SAMSUNG_HEALTH
 
-def get_oxygen_level(user_id):
-    # Range: 85 – 100 (% SpO2)
-    return {"user_id": user_id, "oxygen_level": round(random.uniform(90, 100), 1), "ts": datetime.now().isoformat()}
+def _now_iso():
+    return datetime.utcnow().isoformat()
 
-def get_heart_rate(user_id):
-    # Range: 50 – 160 bpm
-    return {"user_id": user_id, "heart_rate": random.randint(55, 120), "ts": datetime.now().isoformat()}
+def insert_iot_reading_wrapper(user_id: Optional[str], metric_type: str, value: float, ts: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Public function used by other modules to insert a reading. Will trigger alerts if spike thresholds seen.
+    """
+    ts = ts or _now_iso()
+    metadata = metadata or {}
+    rec = insert_iot_reading(user_id=user_id, metric_type=metric_type, value=value, ts=ts, metadata=metadata)
+    # lightweight spike detection rules (these are examples — tune in production)
+    if metric_type == "heart_rate" and value > 140:
+        # create a critical alert
+        create_alert(user_id=user_id, session_id=None, test_name="iot_heart_rate", score=int(value), level="critical", details={"metric": "heart_rate", "value": value, "ts": ts}, notify_methods=["email", "whatsapp", "sms", "emergency_contact"])
+    return rec
 
-def get_sleep_data(user_id):
-    # Hours slept, quality tag
-    hours = round(random.uniform(3, 9), 1)
-    quality = "poor" if hours < 5 else ("average" if hours < 7 else "good")
-    return {"user_id": user_id, "sleep_hours": hours, "quality": quality, "ts": datetime.now().isoformat()}
+# Simulation
+def simulate_reading(user_id: Optional[str], metric_type: str = "heart_rate") -> Dict[str, Any]:
+    if metric_type == "heart_rate":
+        value = random.randint(50, 160)
+    elif metric_type == "sleep_hours":
+        value = round(random.uniform(2.0, 9.0), 1)
+    else:
+        value = random.random() * 100
+    return insert_iot_reading_wrapper(user_id=user_id, metric_type=metric_type, value=value, ts=_now_iso(), metadata={"source": "simulation"})
 
-def collect_all_metrics(user_id):
-    """Return all IoT metrics for a user as a dict"""
-    return {
-        "sweat": get_sweat_level(user_id),
-        "oxygen": get_oxygen_level(user_id),
-        "heart": get_heart_rate(user_id),
-        "sleep": get_sleep_data(user_id)
-    }
+# Connector stubs for future expansion (OAuth flow not implemented here)
+def sync_google_fit(user_id: str, oauth_creds: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Placeholder: use Google Fit APIs with oauth_creds to fetch activity and insert readings.
+    """
+    # Implementation note: Use incremental timestamps and rate-limit calls.
+    return {"status": "not_implemented", "provider": "google_fit", "user_id": user_id}
+
+def sync_fitbit(user_id: str, oauth_creds: Dict[str, Any]) -> Dict[str, Any]:
+    return {"status": "not_implemented", "provider": "fitbit", "user_id": user_id}
+
+def sync_healthkit_stub(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    return {"status": "not_implemented", "provider": "apple_health", "user_id": user_id}
+
+def sync_samsung_health_stub(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    return {"status": "not_implemented", "provider": "samsung_health", "user_id": user_id}
