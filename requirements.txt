@@ -5,6 +5,7 @@ ibm-watson
 cryptography
 flask
 pandas
+SpeechRecognition
 
 # Optional (recommended for analytics/exports)
 openpyxl
