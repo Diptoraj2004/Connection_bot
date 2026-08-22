@@ -1,0 +1,49 @@
+# SentinelMind v3.0 — Full Requirements
+# Install order matters for Colab — use colab_runner.py for auto-install
+
+# ── Core API ───────────────────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.6.0,<3.0.0
+pydantic-settings>=2.2.0
+python-dotenv
+aiofiles
+httpx
+python-multipart  # Required for Twilio WhatsApp form data parsing
+
+# ── AI / RAG ───────────────────────────────────────────────────────────────
+langchain>=0.2.0
+langchain-groq>=0.1.6
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langchain-huggingface>=0.0.6
+groq>=0.9.0
+faiss-cpu
+sentence-transformers>=2.7.0
+
+# ── Privacy / PII ──────────────────────────────────────────────────────────
+presidio-analyzer
+presidio-anonymizer
+
+# ── ML ─────────────────────────────────────────────────────────────────────
+scikit-learn
+xgboost
+pandas
+numpy
+
+# ── Kaggle datasets ────────────────────────────────────────────────────────
+kagglehub
+
+# ── Voice-to-text (optional — adds ~1GB) ───────────────────────────────────
+# openai-whisper
+# ffmpeg-python   (also needs: apt-get install ffmpeg)
+
+# ── WhatsApp / SMS ─────────────────────────────────────────────────────────
+twilio
+
+# ── Colab tunnel ───────────────────────────────────────────────────────────
+pyngrok>=7.0.0
+nest-asyncio
+
+# ── spaCy model (install separately) ───────────────────────────────────────
+# python -m spacy download en_core_web_lg

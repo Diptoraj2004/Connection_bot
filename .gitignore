@@ -5,6 +5,10 @@ local_progress.json
 # Python
 __pycache__/
 *.pyc
+*.db
+*.sqlite3
+
+# Editors / OS
 .vscode/
 .idea/
 .DS_Store
