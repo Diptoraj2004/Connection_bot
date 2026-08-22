@@ -1,0 +1,306 @@
+[
+  {
+    "id": "69e79ff7-5977-46e6-b9bc-813f2e76a138",
+    "type": "audit_event",
+    "ts": "2026-08-22T03:09:21.351898",
+    "payload": {
+      "user_id": "u1",
+      "event_type": "TEST_A",
+      "event_hash": "5bace2f3572e6a94de625013ec7234d4fe5f6c3a507cb7e0d1a989079181e01c",
+      "metadata": {
+        "x": 1
+      }
+    }
+  },
+  {
+    "id": "ea686c31-c6ae-450d-95a8-fcec6bcceacf",
+    "type": "audit_event",
+    "ts": "2026-08-22T03:09:21.352236",
+    "payload": {
+      "user_id": "u1",
+      "event_type": "TEST_B",
+      "event_hash": "60a8402b1d3d5b207b8a6581aede0ab22459245d18e56a3f397507e575dacfab",
+      "metadata": {
+        "x": 2
+      }
+    }
+  },
+  {
+    "id": "99357b61-6db5-4bce-80f1-150bed27fb50",
+    "type": "ngo_outreach",
+    "ts": "2026-08-22T03:09:23.936084",
+    "payload": {
+      "ngo_id": "sangath",
+      "ngo_name": "Sangath",
+      "method": "email_draft",
+      "ts": "2026-08-22T03:09:23.936045",
+      "status": "drafted"
+    }
+  },
+  {
+    "id": "6b270ba1-53a5-4b96-9b02-4937fc97484d",
+    "type": "ngo_submission",
+    "ts": "2026-08-22T03:09:23.937385",
+    "payload": {
+      "submitted": {
+        "name": "Test NGO",
+        "contact_email": "test@test.com",
+        "specialty": [
+          "depression"
+        ],
+        "city": "Kolkata",
+        "id": "test_ngo",
+        "verified": false,
+        "partnership_status": "prospect",
+        "outreach_sent": false,
+        "cost_tier": "unknown"
+      },
+      "ts": "2026-08-22T03:09:23.937357"
+    }
+  },
+  {
+    "id": "2527594f-0dea-4778-9be3-bf69d9ef509b",
+    "type": "volunteer_registration",
+    "ts": "2026-08-22T03:09:23.941188",
+    "payload": {
+      "volunteer_id": "vol_be1c81eb",
+      "name_anon": "TestVol",
+      "college": "Test College",
+      "languages": [
+        "English"
+      ],
+      "availability_hours": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "email_hash": "hash123",
+      "training_level": 0,
+      "active_assignments": 0,
+      "max_assignments": 2,
+      "status": "pending_training",
+      "total_sessions": 0,
+      "rating": null,
+      "registered_at": "2026-08-22T03:09:23.941171"
+    }
+  },
+  {
+    "id": "8fb46c69-079e-4ecb-9f69-45634a4b6b66",
+    "type": "volunteer_training_update",
+    "ts": "2026-08-22T03:09:23.941473",
+    "payload": {
+      "volunteer_id": "vol_be1c81eb",
+      "training_level": 2,
+      "ts": "2026-08-22T03:09:23.941450"
+    }
+  },
+  {
+    "id": "58336c52-13db-4bb3-8491-81322e1fc4c4",
+    "type": "volunteer_registration",
+    "ts": "2026-08-22T03:09:23.942679",
+    "payload": {
+      "volunteer_id": "vol_8f888e3f",
+      "name_anon": "LowTrained",
+      "college": "TC",
+      "languages": [
+        "English"
+      ],
+      "availability_hours": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "email_hash": "h",
+      "training_level": 0,
+      "active_assignments": 0,
+      "max_assignments": 2,
+      "status": "pending_training",
+      "total_sessions": 0,
+      "rating": null,
+      "registered_at": "2026-08-22T03:09:23.942664"
+    }
+  },
+  {
+    "id": "7f16a4a2-1454-4c10-b65a-04866cda1bad",
+    "type": "volunteer_training_update",
+    "ts": "2026-08-22T03:09:23.942989",
+    "payload": {
+      "volunteer_id": "vol_8f888e3f",
+      "training_level": 1,
+      "ts": "2026-08-22T03:09:23.942974"
+    }
+  },
+  {
+    "id": "24159055-b6f0-4dd6-9837-b52125231755",
+    "type": "volunteer_assignment",
+    "ts": "2026-08-22T03:09:23.943331",
+    "payload": {
+      "assignment_id": "asgn_f54f8fc4",
+      "volunteer_id": "vol_be1c81eb",
+      "user_id": "test_user_crisis",
+      "urgency": "crisis",
+      "status": "active",
+      "assigned_at": "2026-08-22T03:09:23.943320"
+    }
+  },
+  {
+    "id": "1d738c53-cb64-40b1-9dfb-e480a5350acc",
+    "type": "counselor_registration",
+    "ts": "2026-08-22T03:09:23.948357",
+    "payload": {
+      "counselor_id": "csl_69bec9d0",
+      "name": "Dr. Test",
+      "email_hash": "hash",
+      "college": "College",
+      "specialties": [
+        "depression"
+      ],
+      "languages": [
+        "English"
+      ],
+      "max_students": 30,
+      "current_students": 0,
+      "status": "active",
+      "registered_at": "2026-08-22T03:09:23.948339"
+    }
+  },
+  {
+    "id": "beb4cedf-c01b-41aa-8631-c3fa14d5047e",
+    "type": "session_note",
+    "ts": "2026-08-22T03:09:23.950377",
+    "payload": {
+      "note_id": "note_a0a8b17b",
+      "counselor_id": "csl_test",
+      "user_id_hash": "user_hash_1",
+      "session_date": "2025-11-01",
+      "session_type": "initial",
+      "presenting_issues": [
+        "anxiety",
+        "stress"
+      ],
+      "interventions": [
+        "breathing_exercise",
+        "psychoeducation"
+      ],
+      "risk_level": "low",
+      "next_appointment": "2025-11-15",
+      "private_notes": "Student seems engaged.",
+      "shared_summary": "First session completed.",
+      "created_at": "2026-08-22T03:09:23.950356"
+    }
+  },
+  {
+    "id": "5441f9aa-6c9d-42db-b072-de250f6ded35",
+    "type": "rating",
+    "ts": "2026-08-22T03:09:23.968798",
+    "payload": {
+      "user_id": "anon_u1",
+      "target_type": "counselor",
+      "target_id": "csl_001",
+      "score": 4,
+      "comment": "Good session",
+      "anonymous": true,
+      "ts": "2026-08-22T03:09:23.968770"
+    }
+  },
+  {
+    "id": "ee0289d3-3de3-4a3b-b436-a85c7089ac69",
+    "type": "rating",
+    "ts": "2026-08-22T03:09:23.970558",
+    "payload": {
+      "user_id": "anon_u2",
+      "target_type": "counselor",
+      "target_id": "csl_bad",
+      "score": 1,
+      "comment": "Poor experience",
+      "anonymous": true,
+      "ts": "2026-08-22T03:09:23.970533"
+    }
+  },
+  {
+    "id": "8f0504c1-ced5-481c-9ebb-d8a354ac814b",
+    "type": "audit_event",
+    "ts": "2026-08-22T03:09:23.971249",
+    "payload": {
+      "user_id": "system",
+      "event_type": "COUNSELOR_LOW_RATING",
+      "event_hash": "f4ec778fe220511f805862ed8571379de3cbf7813ad819dc6ce01aa79eadc098",
+      "metadata": {
+        "counselor_id": "csl_bad",
+        "score": 1,
+        "comment": "Poor experience"
+      }
+    }
+  },
+  {
+    "id": "71fd1d4c-b261-4a19-b025-ca2b6d900c52",
+    "type": "rating",
+    "ts": "2026-08-22T03:09:23.971652",
+    "payload": {
+      "user_id": "anon_u3",
+      "target_type": "counselor",
+      "target_id": "csl_bad",
+      "score": 1,
+      "comment": "Didn't help",
+      "anonymous": true,
+      "ts": "2026-08-22T03:09:23.971637"
+    }
+  },
+  {
+    "id": "495415af-40c3-4ba7-9fec-0483663cdad6",
+    "type": "audit_event",
+    "ts": "2026-08-22T03:09:23.972559",
+    "payload": {
+      "user_id": "system",
+      "event_type": "COUNSELOR_LOW_RATING",
+      "event_hash": "9829e2a5009346b3d251bfc07626dacecde98acd4e94e31146d048e3725be18a",
+      "metadata": {
+        "counselor_id": "csl_bad",
+        "score": 1,
+        "comment": "Didn't help"
+      }
+    }
+  }
+]

@@ -14,7 +14,6 @@ Why this exists:
 
 from datetime import datetime
 from data.db import insert_record, query_records
-from services.rag_engine import _init_rag
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ Ratings serve two purposes:
 
 Rating targets:
   - chat_session: Was the AI conversation helpful?
-  - counselor_session: How was the human counselor?
+  - counselor: How was the human counselor?
   - screening: Did the questionnaire feel right for what you're going through?
   - resource: Was this music/video/guide helpful?
   - peer_volunteer: How was the peer support experience?
@@ -47,7 +47,7 @@ def submit_rating(
     })
 
     # Flag for review if score <= 2 on a counselor
-    if target_type == "counselor_session" and score <= 2:
+    if target_type == "counselor" and score <= 2:
         _flag_low_rated_counselor(target_id, score, comment)
 
     return record
@@ -80,7 +80,7 @@ def get_ratings_for_target(target_type: str, target_id: str) -> dict:
 
 
 def get_counselor_ratings(counselor_id: str) -> dict:
-    return get_ratings_for_target("counselor_session", counselor_id)
+    return get_ratings_for_target("counselor", counselor_id)
 
 
 def get_resource_ratings(resource_name: str) -> dict:
@@ -112,7 +112,7 @@ def get_aggregate_ratings() -> dict:
 
 def get_low_rated_counselors(threshold: float = 3.0) -> list:
     """Return counselors with average rating below threshold."""
-    all_ratings = query_records("rating", {"target_type": "counselor_session"})
+    all_ratings = query_records("rating", {"target_type": "counselor"})
     counselor_scores: dict = {}
     for r in all_ratings:
         cid = r.get("target_id", "")
@@ -122,7 +122,7 @@ def get_low_rated_counselors(threshold: float = 3.0) -> list:
     for cid, scores in counselor_scores.items():
         avg = sum(scores) / len(scores)
         if avg < threshold:
-            low.append({"counselor_id": cid, "average": round(avg, 2), "count": len(scores)})
+            low.append({"target_id": cid, "average": round(avg, 2), "count": len(scores)})
     return sorted(low, key=lambda x: x["average"])
 
 

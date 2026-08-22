@@ -324,18 +324,18 @@ class TestPeerStories:
 # ── IoT Adapter ───────────────────────────────────────────────────────────────
 class TestIoTAdapter:
     def test_high_hr_breach(self):
-        from services.iot_adapter import _check_threshold
-        breached, msg = _check_threshold("heart_rate", 160)
+        from services.iot_adapter import _check_absolute_threshold
+        breached, msg = _check_absolute_threshold("heart_rate", 160)
         assert breached and "160" in msg
 
     def test_normal_hr_no_breach(self):
-        from services.iot_adapter import _check_threshold
-        breached, _ = _check_threshold("heart_rate", 75)
+        from services.iot_adapter import _check_absolute_threshold
+        breached, _ = _check_absolute_threshold("heart_rate", 75)
         assert not breached
 
     def test_low_spo2_breach(self):
-        from services.iot_adapter import _check_threshold
-        breached, msg = _check_threshold("spo2", 91.0)
+        from services.iot_adapter import _check_absolute_threshold
+        breached, msg = _check_absolute_threshold("spo2", 91.0)
         assert breached
 
 
@@ -423,7 +423,8 @@ class TestWhatsAppService:
         h1 = _hash_phone("+919876543210")
         h2 = _hash_phone("+919876543210")
         assert h1 == h2
-        assert len(h1) == 64  # SHA-256 hex digest
+        assert h1.startswith("wa_")
+        assert len(h1) == 19  # "wa_" + 16-char truncated SHA-256
 
     def test_hash_phone_hides_number(self):
         from services.whatsapp_service import _hash_phone

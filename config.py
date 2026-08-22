@@ -96,6 +96,7 @@ class Settings(BaseSettings):
     session_ttl_minutes: int     = 120
     followup_reminder_hours: int = Field(default=48, env="FOLLOWUP_REMINDER_HOURS")
     inactivity_alert_days: int   = Field(default=5,  env="INACTIVITY_ALERT_DAYS")
+    enable_parent_share: bool    = Field(default=False, env="ENABLE_PARENT_SHARE")
 
     # ── LANGUAGES ─────────────────────────────────────────────────────────────
     @property
